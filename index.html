@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>家庭积分明细表</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans)}
+.app{max-width:700px;margin:0 auto;padding:0 0 80px}
+.nav-bar{display:flex;border-bottom:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);position:sticky;top:0;z-index:10}
+.nav-btn{flex:1;padding:10px 0;font-size:11px;font-weight:500;text-align:center;cursor:pointer;color:var(--color-text-secondary);border:none;background:none;border-bottom:2px solid transparent}
+.nav-btn.active{color:#1D9E75;border-bottom:2px solid #1D9E75}
+.page{padding:12px;display:none}
+.page.active{display:block}
+.ph{text-align:center;padding:10px 0 4px}
+.ph h1{font-size:17px;font-weight:500;color:var(--color-text-primary)}
+.ph p{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+.wn{display:flex;align-items:center;gap:6px;margin:8px 0}
+.wn button{border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:6px 12px;font-size:12px;cursor:pointer;color:var(--color-text-primary);flex-shrink:0}
+.wlbl{font-size:13px;font-weight:500;color:var(--color-text-primary);text-align:center;flex:1}
+.dtabs{display:flex;gap:5px;overflow-x:auto;padding-bottom:5px;margin-bottom:10px;scrollbar-width:none}
+.dtabs::-webkit-scrollbar{display:none}
+.dtab{flex-shrink:0;padding:6px 10px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);font-size:12px;cursor:pointer;color:var(--color-text-secondary);text-align:center;line-height:1.4}
+.dtab.active{background:#1D9E75;color:#fff;border-color:#1D9E75}
+.dtab.has-data{border-color:#1D9E75;color:#0F6E56}
+.dtab.active.has-data{color:#fff}
+.sg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-bottom:10px}
+.sc{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:9px;text-align:center}
+.sc .lb{font-size:11px;color:var(--color-text-secondary);margin-bottom:3px}
+.sc .vl{font-size:20px;font-weight:500}
+.g{color:#1D9E75}.r{color:#E24B4A}.am{color:#BA7517}
+.sect{margin-bottom:9px;border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);overflow:hidden}
+.shdr{padding:8px 12px;font-size:12px;font-weight:500}
+.shdr.reward{background:#EAF3DE;color:#27500A}
+.shdr.bonus{background:#E6F1FB;color:#0C447C}
+.shdr.penalty{background:#FCEBEB;color:#791F1F}
+.irow{display:flex;align-items:center;padding:8px 11px;border-top:0.5px solid var(--color-border-tertiary);gap:7px}
+.iinfo{flex:1;min-width:0}
+.inm{font-size:13px;color:var(--color-text-primary);line-height:1.3}
+.ict{font-size:11px;color:var(--color-text-secondary);margin-top:1px}
+.ipts{font-size:13px;font-weight:500;min-width:34px;text-align:right;flex-shrink:0}
+.ipts.p{color:#1D9E75}.ipts.n{color:#E24B4A}
+.chk{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--color-border-secondary);background:var(--color-background-primary);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--color-text-tertiary);-webkit-tap-highlight-color:transparent}
+.chk.on-g{background:#1D9E75;border-color:#1D9E75;color:#fff}
+.chk.on-r{background:#E24B4A;border-color:#E24B4A;color:#fff}
+.ctr{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.cbtn{width:28px;height:28px;border-radius:50%;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--color-text-primary);-webkit-tap-highlight-color:transparent}
+.cv{font-size:13px;font-weight:500;min-width:16px;text-align:center;color:var(--color-text-primary)}
+.cumul-box{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:12px;margin-bottom:10px}
+.cumul-box .lb{font-size:12px;color:var(--color-text-secondary);margin-bottom:8px}
+.cr{display:flex;align-items:center;gap:8px}
+.cr input{flex:1;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:7px 10px;font-size:16px;font-weight:500;background:var(--color-background-primary);color:var(--color-text-primary);width:100%;text-align:center}
+.cr button{padding:7px 14px;border-radius:var(--border-radius-md);border:none;background:#1D9E75;color:#fff;font-size:13px;cursor:pointer;flex-shrink:0;white-space:nowrap}
+.big-total{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:14px;margin-bottom:10px;text-align:center}
+.big-total .lb{font-size:12px;color:var(--color-text-secondary);margin-bottom:4px}
+.big-total .num{font-size:36px;font-weight:500}
+.hint{text-align:center;font-size:11px;color:var(--color-text-secondary);padding:5px 0}
+.ws-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:10px}
+.ws-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:8px 5px;text-align:center}
+.ws-card .lb{font-size:11px;color:var(--color-text-secondary);margin-bottom:2px}
+.ws-card .vl{font-size:17px;font-weight:500;color:var(--color-text-primary)}
+.dbtable{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;overflow-x:auto;margin-bottom:10px}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+th{padding:7px 4px;text-align:center;font-size:11px;color:var(--color-text-secondary);font-weight:500;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary)}
+th:first-child{text-align:left;padding-left:8px;width:46px}
+td{padding:6px 4px;text-align:center;font-size:12px;color:var(--color-text-primary);border-top:0.5px solid var(--color-border-tertiary)}
+td:first-child{text-align:left;padding-left:8px;color:var(--color-text-secondary);font-size:11px}
+.td-g{color:#1D9E75;font-weight:500}.td-r{color:#E24B4A;font-weight:500}
+.hist-row{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:var(--border-radius-md);background:var(--color-background-secondary);margin-bottom:5px}
+.manage-sect{margin-bottom:12px;border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);overflow:hidden}
+.mhdr{padding:9px 12px;font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:space-between;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary);color:var(--color-text-primary)}
+.mitem{display:flex;align-items:center;padding:8px 10px;border-top:0.5px solid var(--color-border-tertiary);gap:7px}
+.minm{flex:1;min-width:0;font-size:13px;color:var(--color-text-primary)}
+.mpts{font-size:13px;font-weight:500;width:42px;text-align:right;flex-shrink:0}
+.edit-btn{border:0.5px solid var(--color-border-secondary);background:none;border-radius:var(--border-radius-md);padding:4px 9px;font-size:11px;cursor:pointer;color:var(--color-text-secondary);flex-shrink:0}
+.del-btn{border:0.5px solid var(--color-border-danger);background:none;border-radius:50%;width:24px;height:24px;cursor:pointer;color:var(--color-text-danger);font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.add-form{padding:10px;border-top:0.5px solid var(--color-border-tertiary);display:flex;flex-direction:column;gap:7px}
+.add-form input,.add-form select,.add-form textarea{border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:7px 10px;font-size:13px;background:var(--color-background-primary);color:var(--color-text-primary);width:100%}
+.r2{display:flex;gap:7px}
+.r2 input{text-align:center}
+.add-btn{padding:8px;border-radius:var(--border-radius-md);border:none;background:#1D9E75;color:#fff;font-size:13px;cursor:pointer;font-weight:500}
+.danger-btn{width:100%;padding:9px;border:0.5px solid var(--color-border-danger);background:none;border-radius:var(--border-radius-md);color:var(--color-text-danger);font-size:13px;cursor:pointer;margin-top:6px}
+.reward-card{border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px}
+.reward-icon{width:48px;height:48px;border-radius:var(--border-radius-md);background:#FAEEDA;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.reward-info{flex:1;min-width:0}
+.reward-name{font-size:15px;font-weight:500;color:var(--color-text-primary);margin-bottom:3px}
+.reward-desc{font-size:12px;color:var(--color-text-secondary);margin-bottom:6px}
+.reward-bottom{display:flex;align-items:center;gap:8px}
+.cost-badge{background:#FAEEDA;color:#633806;font-size:12px;font-weight:500;padding:3px 10px;border-radius:20px;flex-shrink:0}
+.redeem-btn{border:none;background:#BA7517;color:#fff;border-radius:var(--border-radius-md);padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+.redeem-btn:disabled{opacity:0.4;cursor:not-allowed}
+.redeem-log{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;margin-bottom:10px}
+.log-row{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-top:0.5px solid var(--color-border-tertiary);gap:8px}
+.log-row:first-child{border-top:none}
+.log-name{font-size:13px;color:var(--color-text-primary)}
+.log-meta{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+.log-cost{font-size:14px;font-weight:500;color:#E24B4A;flex-shrink:0}
+.log-undo{border:0.5px solid var(--color-border-secondary);background:none;border-radius:var(--border-radius-md);padding:3px 8px;font-size:11px;cursor:pointer;color:var(--color-text-secondary);flex-shrink:0}
+.modal-bg{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:100;align-items:center;justify-content:center;padding:20px}
+.modal-bg.open{display:flex}
+.modal{background:var(--color-background-primary);border-radius:var(--border-radius-lg);padding:18px;width:100%;max-width:360px;border:0.5px solid var(--color-border-tertiary)}
+.modal h3{font-size:15px;font-weight:500;margin-bottom:12px;color:var(--color-text-primary)}
+.modal input,.modal select,.modal textarea{border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:8px 10px;font-size:14px;background:var(--color-background-primary);color:var(--color-text-primary);width:100%;margin-bottom:8px}
+.mbtns{display:flex;gap:8px;margin-top:4px}
+.mbtns button{flex:1;padding:9px;border-radius:var(--border-radius-md);font-size:13px;cursor:pointer}
+.btn-cancel{border:0.5px solid var(--color-border-secondary);background:none;color:var(--color-text-secondary)}
+.btn-save{border:none;background:#1D9E75;color:#fff;font-weight:500}
+.empty{text-align:center;color:var(--color-text-secondary);font-size:13px;padding:20px}
+.section-label{font-size:13px;font-weight:500;color:var(--color-text-primary);margin:14px 0 8px}
+.backup-sect{border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);overflow:hidden;margin-bottom:12px}
+.backup-body{padding:12px;display:flex;flex-direction:column;gap:8px}
+.backup-btn{padding:10px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);font-size:13px;cursor:pointer;color:var(--color-text-primary);text-align:center;font-weight:500}
+.backup-btn.export{border-color:#1D9E75;color:#1D9E75}
+.backup-hint{font-size:11px;color:var(--color-text-secondary);line-height:1.6}
+/* 加载遮罩 */
+#loadingOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:12px}
+#loadingOverlay .spin{width:28px;height:28px;border:3px solid #e0e0e0;border-top-color:#1D9E75;border-radius:50%;animation:spin 0.8s linear infinite}
+#loadingOverlay .msg{font-size:13px;color:#888}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* 同步状态提示 */
+#syncBadge{position:fixed;bottom:70px;right:12px;font-size:11px;padding:4px 10px;border-radius:20px;z-index:50;opacity:0;transition:opacity 0.3s;pointer-events:none}
+</style>
+</head>
+<body>
+
+<!-- 加载遮罩 -->
+<div id="loadingOverlay">
+  <div class="spin"></div>
+  <div class="msg">数据加载中...</div>
+</div>
+
+<!-- 同步状态角标 -->
+<div id="syncBadge"></div>
+
+<div class="app" id="mainApp" style="display:none">
+<div class="nav-bar">
+  <button class="nav-btn active" onclick="showPage('score')">每日打分</button>
+  <button class="nav-btn" onclick="showPage('shop')">积分商店</button>
+  <button class="nav-btn" onclick="showPage('week')">本周汇总</button>
+  <button class="nav-btn" onclick="showPage('history')">历史记录</button>
+  <button class="nav-btn" onclick="showPage('manage')">管理</button>
+</div>
+
+<div id="page-score" class="page active">
+  <div class="ph"><h1>家庭积分明细表</h1><p>我言而有信，自律是为了更自由！</p></div>
+  <div class="cumul-box">
+    <div class="lb">历史累积积分（手动输入起始分数）</div>
+    <div class="cr"><input type="number" id="cumulInput" placeholder="0" step="1"/><button onclick="saveCumul()">确认</button></div>
+  </div>
+  <div class="big-total">
+    <div class="lb">当前可用积分（累积 + 所有打分 − 已兑换）</div>
+    <div class="num" id="grandTotal">0</div>
+  </div>
+  <div class="wn">
+    <button onclick="changeWeek(-1)">← 上周</button>
+    <div class="wlbl" id="weekLabel"></div>
+    <button onclick="changeWeek(1)">下周 →</button>
+  </div>
+  <div class="dtabs" id="dayTabs"></div>
+  <div class="sg">
+    <div class="sc"><div class="lb">今日得分</div><div class="vl g" id="sumPos">+0</div></div>
+    <div class="sc"><div class="lb">今日扣分</div><div class="vl r" id="sumNeg">0</div></div>
+    <div class="sc"><div class="lb">今日总分</div><div class="vl" id="sumTotal">0</div></div>
+  </div>
+  <div id="scoreItems"></div>
+  <div class="hint">打分自动保存到云端</div>
+</div>
+
+<div id="page-shop" class="page">
+  <div class="ph"><h1>积分商店</h1><p>用积分兑换你喜欢的奖励！</p></div>
+  <div class="big-total" style="margin-bottom:14px">
+    <div class="lb">当前可用积分</div>
+    <div class="num am" id="shopPoints">0</div>
+  </div>
+  <div id="rewardsList"></div>
+  <div class="section-label">兑换记录</div>
+  <div id="redeemLog"></div>
+</div>
+
+<div id="page-week" class="page">
+  <div class="ph"><h1>本周汇总</h1></div>
+  <div class="wn">
+    <button onclick="changeWeekSum(-1)">← 上周</button>
+    <div class="wlbl" id="weekLabelSum"></div>
+    <button onclick="changeWeekSum(1)">下周 →</button>
+  </div>
+  <div class="ws-grid" id="wsCards"></div>
+  <div class="dbtable"><table id="dbTable"></table></div>
+</div>
+
+<div id="page-history" class="page">
+  <div class="ph"><h1>历史记录</h1></div>
+  <div id="histList"></div>
+  <button class="danger-btn" onclick="clearAll()">清空所有数据</button>
+</div>
+
+<div id="page-manage" class="page">
+  <div class="ph"><h1>管理</h1></div>
+
+  <div class="section-label">数据备份与恢复</div>
+  <div class="backup-sect">
+    <div class="mhdr">备份数据</div>
+    <div class="backup-body">
+      <p class="backup-hint">数据已自动同步到云端，下方导出可作为本地备份留存。</p>
+      <button class="backup-btn export" onclick="exportData()">导出本地备份文件</button>
+      <button class="backup-btn" onclick="document.getElementById('importFile').click()">从本地备份文件恢复</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)"/>
+    </div>
+  </div>
+
+  <div class="section-label">积分项目</div>
+  <div id="manageList"></div>
+  <div class="section-label">奖励项目</div>
+  <div id="manageRewards"></div>
+</div>
+</div>
+
+<!-- 编辑积分项目弹窗 -->
+<div class="modal-bg" id="editModal">
+  <div class="modal">
+    <h3 id="editModalTitle">编辑项目</h3>
+    <input type="text" id="editName" placeholder="项目名称"/>
+    <input type="text" id="editCat" placeholder="分类"/>
+    <input type="number" id="editPts" placeholder="积分值（正/负数）" step="1"/>
+    <select id="editType">
+      <option value="reward">奖励（日常学习）</option>
+      <option value="bonus">加分（生活习惯/成果）</option>
+      <option value="penalty">扣分</option>
+    </select>
+    <label style="font-size:12px;color:var(--color-text-secondary);display:flex;align-items:center;gap:6px;margin-bottom:8px"><input type="checkbox" id="editCounter"/> 计数器模式</label>
+    <div class="mbtns"><button class="btn-cancel" onclick="closeModal('editModal')">取消</button><button class="btn-save" onclick="saveEdit()">保存</button></div>
+  </div>
+</div>
+
+<!-- 编辑奖励弹窗 -->
+<div class="modal-bg" id="rewardModal">
+  <div class="modal">
+    <h3 id="rewardModalTitle">编辑奖励</h3>
+    <input type="text" id="rName" placeholder="奖励名称（如：看一小时电视）"/>
+    <input type="text" id="rIcon" placeholder="图标（单个emoji，如 🎮）"/>
+    <textarea id="rDesc" placeholder="奖励说明（可选）" rows="2" style="resize:none"></textarea>
+    <input type="number" id="rCost" placeholder="所需积分" min="1" step="1"/>
+    <div class="mbtns"><button class="btn-cancel" onclick="closeModal('rewardModal')">取消</button><button class="btn-save" onclick="saveReward()">保存</button></div>
+  </div>
+</div>
+
+<!-- 兑换确认弹窗 -->
+<div class="modal-bg" id="confirmModal">
+  <div class="modal">
+    <h3 id="confirmTitle">确认兑换</h3>
+    <p id="confirmMsg" style="font-size:14px;color:var(--color-text-secondary);margin-bottom:16px;line-height:1.6"></p>
+    <div class="mbtns"><button class="btn-cancel" onclick="closeModal('confirmModal')">取消</button><button class="btn-save" style="background:#BA7517" onclick="doRedeem()">确认兑换</button></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  ★ 配置区：填入你的 Supabase 信息
+// ═══════════════════════════════════════════════
+const SUPABASE_URL  = 'https://ujbxpxuykvcjtlafroiw.supabase.co';   // 例: https://abcdefgh.supabase.co
+const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYnhweHV5a3ZjanRsYWZyb2l3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNTE1NjcsImV4cCI6MjA5MTcyNzU2N30.RHaWm0qzr0_yeKVbUrQwH2lHwFi7uzXGzvzne3VG6A4'; // Project Settings → API → anon public
+const FAMILY_ID     = 'my-family';           // 家庭唯一标识，随意填写，不要有空格
+// ═══════════════════════════════════════════════
+
+// 自动检测：未填写配置或 CDN 未加载时降级为 localStorage
+const USE_CLOUD = SUPABASE_URL !== 'YOUR_SUPABASE_URL'
+                  && typeof supabase !== 'undefined';
+const sb = USE_CLOUD ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+const DAYS=['周一','周二','周三','周四','周五','周六','周日'];
+const DEFAULT_ITEMS=[
+  {cat:'学习习惯',name:'语文晨读/晚读',pts:2,type:'reward'},
+  {cat:'学习习惯',name:'英语晨读/晚读',pts:2,type:'reward'},
+  {cat:'学习习惯',name:'语文学习+作业+默单词背课文',pts:5,type:'reward'},
+  {cat:'学习习惯',name:'英语学习+作业+默单词背课文',pts:5,type:'reward'},
+  {cat:'学习习惯',name:'数学学习+作业',pts:5,type:'reward'},
+  {cat:'学习习惯',name:'中文练字/默写',pts:3,type:'reward'},
+  {cat:'学习习惯',name:'英语默写',pts:3,type:'reward'},
+  {cat:'学习习惯',name:'练钢琴2遍',pts:4,type:'reward'},
+  {cat:'学习习惯',name:'数学计算全对',pts:3,type:'reward'},
+  {cat:'学习习惯',name:'语文/英语听写全对',pts:5,type:'reward'},
+  {cat:'生活习惯',name:'7点半准时起床，独立完成刷牙洗脸',pts:8,type:'bonus'},
+  {cat:'生活习惯',name:'吃饭不拖拉，不挑食',pts:5,type:'bonus'},
+  {cat:'生活习惯',name:'独立吃饭，把饭吃干净',pts:5,type:'bonus'},
+  {cat:'生活习惯',name:'保持东西整洁',pts:3,type:'bonus'},
+  {cat:'生活习惯',name:'8:30准时上床',pts:8,type:'bonus'},
+  {cat:'学习成果',name:'古诗、小古文背诵一首',pts:3,type:'bonus'},
+  {cat:'学习成果',name:'语文单元测试90分',pts:10,type:'bonus'},
+  {cat:'学习成果',name:'数学单元测试90分',pts:10,type:'bonus'},
+  {cat:'学习成果',name:'英语单元测试100分',pts:100,type:'bonus'},
+  {cat:'学习',name:'未认真完成学习打卡',pts:-3,type:'penalty'},
+  {cat:'学习',name:'未完成作业',pts:-10,type:'penalty'},
+  {cat:'学习',name:'写作业坐姿不标准',pts:-3,type:'penalty'},
+  {cat:'学习',name:'默写错误（每错一个）',pts:-1,type:'penalty',counter:true},
+  {cat:'学习',name:'语文测试低于80分',pts:-10,type:'penalty'},
+  {cat:'学习',name:'英语测试低于80分',pts:-10,type:'penalty'},
+  {cat:'学习',name:'数学测试低于80分',pts:-10,type:'penalty'},
+  {cat:'生活习惯',name:'起床拖拉，晚于9点睡觉',pts:-5,type:'penalty'},
+  {cat:'生活习惯',name:'不吃蔬菜，吃饭慢',pts:-5,type:'penalty'},
+  {cat:'生活习惯',name:'书桌脏乱差',pts:-3,type:'penalty'},
+  {cat:'品行',name:'说话不文明，不礼貌',pts:-10,type:'penalty'},
+];
+const DEFAULT_REWARDS=[
+  {name:'看一小时电视',icon:'📺',desc:'可以选一个喜欢的节目看一小时',cost:30},
+  {name:'玩30分钟游戏',icon:'🎮',desc:'可以玩平板或Switch游戏30分钟',cost:20},
+  {name:'吃一次麦当劳',icon:'🍔',desc:'爸爸妈妈带你去吃麦当劳',cost:50},
+  {name:'选一本新书',icon:'📚',desc:'可以去书店挑一本自己喜欢的书',cost:40},
+  {name:'晚睡30分钟',icon:'🌙',desc:'今晚可以比平时晚睡30分钟',cost:15},
+  {name:'亲子游乐场',icon:'🎡',desc:'周末去游乐场玩一次',cost:100},
+];
+
+let scores={},items=[],rewards=[],redeemLog=[],cumul=0;
+let weekOffset=0,sumOffset=0,activeDay=0;
+let editIdx=-1,rewardEditIdx=-1,pendingRedeemIdx=-1;
+let saveTimer=null;
+
+// ── 同步状态角标 ──────────────────────────────
+function showSync(type){
+  const el=document.getElementById('syncBadge');
+  const base='position:fixed;bottom:70px;right:12px;font-size:11px;padding:4px 10px;border-radius:20px;z-index:50;pointer-events:none;opacity:1;transition:opacity 0.3s;';
+  if(type==='saving'){
+    el.textContent='同步中...';
+    el.style.cssText=base+'background:#F5F5F5;color:#888;';
+  }else if(type==='ok'){
+    el.textContent='已同步 ✓';
+    el.style.cssText=base+'background:#EAF3DE;color:#27500A;';
+    clearTimeout(el._t);el._t=setTimeout(()=>el.style.opacity='0',2000);
+  }else if(type==='local'){
+    el.textContent='本地模式';
+    el.style.cssText=base+'background:#F5F5F5;color:#888;';
+    clearTimeout(el._t);el._t=setTimeout(()=>el.style.opacity='0',2000);
+  }else if(type==='err'){
+    el.textContent='同步失败，请检查网络';
+    el.style.cssText=base+'background:#FCEBEB;color:#791F1F;';
+  }
+}
+
+// ── 读取数据（云端 or 本地）──────────────────
+async function load(){
+  if(USE_CLOUD){
+    try{
+      const{data,error}=await sb.from('app_data').select('*').eq('id',FAMILY_ID).maybeSingle();
+      if(error)throw error;
+      if(data){
+        scores=data.scores||{};
+        items=data.items||JSON.parse(JSON.stringify(DEFAULT_ITEMS));
+        rewards=data.rewards||JSON.parse(JSON.stringify(DEFAULT_REWARDS));
+        redeemLog=data.redeem_log||[];
+        cumul=data.cumul||0;
+        return;
+      }
+    }catch(e){console.error('云端加载失败，降级本地',e)}
+  }
+  // 本地 localStorage
+  try{
+    scores=JSON.parse(localStorage.getItem('fam4_scores')||'{}');
+    items=JSON.parse(localStorage.getItem('fam4_items')||'null')||JSON.parse(JSON.stringify(DEFAULT_ITEMS));
+    rewards=JSON.parse(localStorage.getItem('fam4_rewards')||'null')||JSON.parse(JSON.stringify(DEFAULT_REWARDS));
+    redeemLog=JSON.parse(localStorage.getItem('fam4_redeem')||'[]');
+    cumul=parseInt(localStorage.getItem('fam4_cumul')||'0')||0;
+  }catch(e){setDefaults()}
+}
+function setDefaults(){
+  scores={};
+  items=JSON.parse(JSON.stringify(DEFAULT_ITEMS));
+  rewards=JSON.parse(JSON.stringify(DEFAULT_REWARDS));
+  redeemLog=[];cumul=0;
+}
+
+// ── 保存数据（云端 or 本地，防抖 600ms）──────
+function save(){
+  showSync('saving');
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(async()=>{
+    if(USE_CLOUD){
+      try{
+        const{error}=await sb.from('app_data').upsert({
+          id:FAMILY_ID,scores,items,rewards,
+          redeem_log:redeemLog,cumul,
+          updated_at:new Date().toISOString()
+        },{onConflict:'id'});
+        if(error)throw error;
+        showSync('ok');return;
+      }catch(e){console.error('云端保存失败',e);showSync('err')}
+    }
+    // 本地 localStorage
+    try{
+      localStorage.setItem('fam4_scores',JSON.stringify(scores));
+      localStorage.setItem('fam4_items',JSON.stringify(items));
+      localStorage.setItem('fam4_rewards',JSON.stringify(rewards));
+      localStorage.setItem('fam4_redeem',JSON.stringify(redeemLog));
+      localStorage.setItem('fam4_cumul',String(cumul));
+      showSync('local');
+    }catch(e){showSync('err')}
+  },600);
+}
+
+// ── 本地导出/导入（应急备份）─────────────────
+function exportData(){
+  const data={scores,items,rewards,redeemLog,cumul,exportTime:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const ts=new Date().toISOString().slice(0,10).replace(/-/g,'');
+  a.href=url;a.download=`家庭积分备份_${ts}.json`;
+  document.body.appendChild(a);a.click();
+  document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+function importData(event){
+  const file=event.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async function(e){
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!data.scores||!data.items){alert('备份文件格式不正确');return}
+      if(!confirm('导入后将覆盖当前所有数据，确认继续？'))return;
+      scores=data.scores||{};
+      items=data.items||JSON.parse(JSON.stringify(DEFAULT_ITEMS));
+      rewards=data.rewards||JSON.parse(JSON.stringify(DEFAULT_REWARDS));
+      redeemLog=data.redeemLog||[];
+      cumul=data.cumul||0;
+      save();renderScore();renderManage();
+      alert('数据恢复成功！');
+    }catch(err){alert('导入失败，文件可能已损坏')}
+  };
+  reader.readAsText(file);
+  event.target.value='';
+}
+
+// ── 工具函数 ──────────────────────────────────
+function getMonday(d){const day=d.getDay();const diff=d.getDate()-day+(day===0?-6:1);const m=new Date(d);m.setDate(diff);m.setHours(0,0,0,0);return m}
+function getWS(off){const d=getMonday(new Date());d.setDate(d.getDate()+off*7);return d}
+function dk(off,di){const ws=getWS(off);ws.setDate(ws.getDate()+di);return ws.toISOString().slice(0,10)}
+function wn(d){const j=new Date(d.getFullYear(),0,1);return Math.ceil(((d-j)/86400000+j.getDay()+1)/7)}
+function fd(d){return`${d.getMonth()+1}/${d.getDate()}`}
+function wlabel(off){const ws=getWS(off);const we=new Date(ws);we.setDate(we.getDate()+6);return`${ws.getFullYear()} 第${wn(ws)}周 (${fd(ws)}–${fd(we)})`}
+function getDayData(off,di){const k=dk(off,di);if(!scores[k])scores[k]={};return scores[k]}
+function hasData(off,di){const d=getDayData(off,di);return Object.keys(d).some(k=>d[k]&&d[k]!==0)}
+
+function calcDay(off,di){
+  const data=getDayData(off,di);let pos=0,neg=0;
+  items.forEach((item,i)=>{const k='i'+i;if(item.counter){const c=data[k]||0;const t=item.pts*c;if(t<0)neg+=t;else pos+=t}else if(data[k]){if(item.pts>0)pos+=item.pts;else neg+=item.pts}});
+  return{pos,neg,total:pos+neg}
+}
+function calcAllTime(){
+  let t=0;
+  Object.keys(scores).forEach(ds=>{const data=scores[ds];items.forEach((item,i)=>{const k='i'+i;if(item.counter){t+=item.pts*(data[k]||0)}else if(data[k]){t+=item.pts}})});
+  return t;
+}
+function calcRedeemed(){return redeemLog.reduce((s,r)=>s+r.cost,0)}
+function calcAvailable(){return cumul+calcAllTime()-calcRedeemed()}
+
+function showPage(p){
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  ['score','shop','week','history','manage'].forEach((n,i)=>{if(n===p)document.querySelectorAll('.nav-btn')[i].classList.add('active')});
+  if(p==='shop')renderShop();
+  if(p==='week')renderWeek();
+  if(p==='history')renderHistory();
+  if(p==='manage')renderManage();
+}
+
+function saveCumul(){cumul=parseInt(document.getElementById('cumulInput').value)||0;save();renderScore()}
+function changeWeek(d){weekOffset+=d;renderScore()}
+function changeWeekSum(d){sumOffset+=d;renderWeek()}
+
+function renderScore(){
+  document.getElementById('cumulInput').value=cumul||'';
+  const av=calcAvailable();
+  const el=document.getElementById('grandTotal');
+  el.textContent=(av>=0?'+':'')+av;
+  el.className='num '+(av>=0?'g':'r');
+  document.getElementById('weekLabel').textContent=wlabel(weekOffset);
+  const today=new Date();
+  const tabs=document.getElementById('dayTabs');tabs.innerHTML='';
+  DAYS.forEach((day,i)=>{
+    const dd=new Date(getWS(weekOffset));dd.setDate(dd.getDate()+i);
+    const isToday=dd.toDateString()===today.toDateString();
+    const hd=hasData(weekOffset,i);
+    const btn=document.createElement('div');
+    btn.className='dtab'+(i===activeDay?' active':'')+(hd&&i!==activeDay?' has-data':'');
+    btn.innerHTML=`${day}<br><span style="font-size:10px">${fd(dd)}${isToday?' ●':''}</span>`;
+    btn.onclick=()=>{activeDay=i;renderScore()};
+    tabs.appendChild(btn);
+  });
+  const{pos,neg,total}=calcDay(weekOffset,activeDay);
+  document.getElementById('sumPos').textContent='+'+pos;
+  document.getElementById('sumNeg').textContent=neg;
+  const st=document.getElementById('sumTotal');
+  st.textContent=(total>=0?'+':'')+total;
+  st.className='vl '+(total>0?'g':total<0?'r':'');
+  renderItems();
+}
+
+function renderItems(){
+  const data=getDayData(weekOffset,activeDay);
+  const container=document.getElementById('scoreItems');container.innerHTML='';
+  const secs=[{type:'reward',label:'奖励项目（日常学习）',cls:'reward'},{type:'bonus',label:'加分项目（生活习惯 & 学习成果）',cls:'bonus'},{type:'penalty',label:'扣分项目',cls:'penalty'}];
+  secs.forEach(sec=>{
+    const filtered=items.map((item,i)=>({item,i})).filter(({item})=>item.type===sec.type);
+    if(!filtered.length)return;
+    const section=document.createElement('div');section.className='sect';
+    const hdr=document.createElement('div');hdr.className='shdr '+sec.cls;hdr.textContent=sec.label;
+    section.appendChild(hdr);
+    filtered.forEach(({item,i})=>{
+      const k='i'+i;const row=document.createElement('div');row.className='irow';
+      const info=document.createElement('div');info.className='iinfo';
+      info.innerHTML=`<div class="inm">${item.name}</div><div class="ict">${item.cat}</div>`;
+      const pts=document.createElement('div');pts.className='ipts '+(item.pts>0?'p':'n');pts.textContent=(item.pts>0?'+':'')+item.pts;
+      if(item.counter){
+        const cnt=data[k]||0;const wrap=document.createElement('div');wrap.className='ctr';
+        const minus=document.createElement('button');minus.className='cbtn';minus.textContent='−';
+        minus.onclick=()=>{const d=getDayData(weekOffset,activeDay);if((d[k]||0)>0){d[k]=(d[k]||0)-1;save();renderScore()}};
+        const val=document.createElement('div');val.className='cv';val.textContent=cnt;
+        const plus=document.createElement('button');plus.className='cbtn';plus.textContent='+';
+        plus.onclick=()=>{const d=getDayData(weekOffset,activeDay);d[k]=(d[k]||0)+1;save();renderScore()};
+        wrap.appendChild(minus);wrap.appendChild(val);wrap.appendChild(plus);
+        row.appendChild(info);row.appendChild(pts);row.appendChild(wrap);
+      } else {
+        const on=data[k];const btn=document.createElement('button');
+        btn.className='chk'+(on?(item.pts>0?' on-g':' on-r'):'');btn.textContent=on?'✓':'';
+        btn.onclick=()=>{const d=getDayData(weekOffset,activeDay);d[k]=!d[k];save();renderScore()};
+        row.appendChild(info);row.appendChild(pts);row.appendChild(btn);
+      }
+      section.appendChild(row);
+    });
+    container.appendChild(section);
+  });
+}
+
+function renderShop(){
+  const av=calcAvailable();
+  document.getElementById('shopPoints').textContent=av;
+  const container=document.getElementById('rewardsList');container.innerHTML='';
+  if(!rewards.length){container.innerHTML='<div class="empty">暂无奖励项目，前往「管理」页添加</div>';return}
+  rewards.forEach((r,i)=>{
+    const canAfford=av>=r.cost;
+    const card=document.createElement('div');card.className='reward-card';
+    card.innerHTML=`
+      <div class="reward-icon">${r.icon||'★'}</div>
+      <div class="reward-info">
+        <div class="reward-name">${r.name}</div>
+        ${r.desc?`<div class="reward-desc">${r.desc}</div>`:''}
+        <div class="reward-bottom">
+          <div class="cost-badge">需 ${r.cost} 积分</div>
+          <button class="redeem-btn" ${canAfford?'':'disabled'} onclick="confirmRedeem(${i})">${canAfford?'立即兑换':'积分不足'}</button>
+        </div>
+      </div>`;
+    container.appendChild(card);
+  });
+  renderLog();
+}
+
+function renderLog(){
+  const container=document.getElementById('redeemLog');
+  if(!redeemLog.length){container.innerHTML='<div class="empty">暂无兑换记录</div>';return}
+  const logs=[...redeemLog].reverse();
+  let html='<div class="redeem-log">';
+  logs.forEach((log,ri)=>{
+    const origIdx=redeemLog.length-1-ri;
+    html+=`<div class="log-row">
+      <div><div class="log-name">${log.icon||'★'} ${log.name}</div><div class="log-meta">${log.date}</div></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="log-cost">−${log.cost}</div>
+        <button class="log-undo" onclick="undoRedeem(${origIdx})">撤销</button>
+      </div>
+    </div>`;
+  });
+  html+='</div>';
+  container.innerHTML=html;
+}
+
+function confirmRedeem(idx){
+  const r=rewards[idx];const av=calcAvailable();
+  pendingRedeemIdx=idx;
+  document.getElementById('confirmTitle').textContent='确认兑换 '+r.name;
+  document.getElementById('confirmMsg').textContent=`将消耗 ${r.cost} 积分兑换「${r.name}」。\n\n当前可用积分：${av}\n兑换后剩余：${av-r.cost}`;
+  document.getElementById('confirmModal').classList.add('open');
+}
+function doRedeem(){
+  if(pendingRedeemIdx<0)return;
+  const r=rewards[pendingRedeemIdx];
+  const now=new Date();
+  const dateStr=`${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+  redeemLog.push({name:r.name,icon:r.icon,cost:r.cost,date:dateStr});
+  save();closeModal('confirmModal');pendingRedeemIdx=-1;
+  renderShop();renderScore();
+}
+function undoRedeem(idx){
+  if(confirm(`撤销兑换「${redeemLog[idx].name}」？积分将退还。`)){
+    redeemLog.splice(idx,1);save();renderShop();renderScore();
+  }
+}
+
+function renderWeek(){
+  document.getElementById('weekLabelSum').textContent=wlabel(sumOffset);
+  let tp=0,tn=0,da=0;
+  const dayScores=DAYS.map((_,i)=>{const{pos,neg,total}=calcDay(sumOffset,i);const hd=hasData(sumOffset,i);if(hd){tp+=pos;tn+=neg;da++}return{pos,neg,total,hd}});
+  const wt=tp+tn;
+  document.getElementById('wsCards').innerHTML=`
+    <div class="ws-card"><div class="lb">总得分</div><div class="vl g">+${tp}</div></div>
+    <div class="ws-card"><div class="lb">总扣分</div><div class="vl r">${tn}</div></div>
+    <div class="ws-card"><div class="lb">净积分</div><div class="vl ${wt>=0?'g':'r'}">${(wt>=0?'+':'')+wt}</div></div>
+    <div class="ws-card"><div class="lb">打卡天</div><div class="vl">${da}/7</div></div>`;
+  const ws=getWS(sumOffset);let html='<thead><tr><th>项目</th>';
+  DAYS.forEach((d,i)=>{const dd=new Date(ws);dd.setDate(ws.getDate()+i);html+=`<th>${d}<br>${fd(dd)}</th>`});
+  html+='</tr></thead><tbody>';
+  [{label:'得分',key:'pos',pos:true},{label:'扣分',key:'neg',neg:true},{label:'总分',key:'total',both:true}].forEach(r=>{
+    html+=`<tr><td>${r.label}</td>`;
+    dayScores.forEach(d=>{
+      const v=d[r.key];let cls='';
+      if(d.hd){if(r.pos&&v>0)cls='td-g';if(r.neg&&v<0)cls='td-r';if(r.both)cls=v>0?'td-g':v<0?'td-r':''}
+      html+=`<td class="${cls}">${d.hd?(v!==0?(v>0?'+':'')+v:'0'):'—'}</td>`;
+    });
+    html+='</tr>';
+  });
+  html+='</tbody>';
+  document.getElementById('dbTable').innerHTML=html;
+}
+
+function renderHistory(){
+  const allKeys=Object.keys(scores);const container=document.getElementById('histList');
+  if(!allKeys.length){container.innerHTML='<div class="empty">暂无历史记录</div>';return}
+  const wmap={};
+  allKeys.forEach(ds=>{const ws=getMonday(new Date(ds)).toISOString().slice(0,10);if(!wmap[ws])wmap[ws]={start:new Date(ws)};});
+  const sorted=Object.keys(wmap).sort((a,b)=>b.localeCompare(a));
+  let html='';
+  sorted.forEach(wk=>{
+    const ws=wmap[wk].start;const we=new Date(ws);we.setDate(we.getDate()+6);
+    let wp=0,wn2=0;
+    for(let i=0;i<7;i++){const dd=new Date(ws);dd.setDate(ws.getDate()+i);const data=scores[dd.toISOString().slice(0,10)];if(!data)continue;items.forEach((item,idx)=>{const k='i'+idx;if(item.counter){const c=data[k]||0;const t=item.pts*c;if(t<0)wn2+=t;else wp+=t}else if(data[k]){if(item.pts>0)wp+=item.pts;else wn2+=item.pts}});}
+    const wt=wp+wn2;
+    html+=`<div class="hist-row"><div><div style="font-size:13px;font-weight:500;color:var(--color-text-primary)">第${wn(ws)}周</div><div style="font-size:11px;color:var(--color-text-secondary)">${fd(ws)}–${fd(we)}</div></div><div style="text-align:right"><div style="font-size:16px;font-weight:500" class="${wt>=0?'g':'r'}">${(wt>=0?'+':'')+wt}分</div><div style="font-size:11px;color:var(--color-text-secondary)">+${wp} / ${wn2}</div></div></div>`;
+  });
+  container.innerHTML=html;
+}
+
+function renderManage(){
+  const ml=document.getElementById('manageList');ml.innerHTML='';
+  const secs=[{type:'reward',label:'奖励项目'},{type:'bonus',label:'加分项目'},{type:'penalty',label:'扣分项目'}];
+  secs.forEach(sec=>{
+    const s=document.createElement('div');s.className='manage-sect';
+    const h=document.createElement('div');h.className='mhdr';h.innerHTML=`<span>${sec.label}</span>`;s.appendChild(h);
+    items.forEach((item,i)=>{
+      if(item.type!==sec.type)return;
+      const row=document.createElement('div');row.className='mitem';
+      row.innerHTML=`<div class="minm">${item.name}<div style="font-size:11px;color:var(--color-text-secondary)">${item.cat}${item.counter?' · 计数器':''}</div></div><div class="mpts ${item.pts>0?'g':'r'}">${(item.pts>0?'+':'')+item.pts}</div>`;
+      const eb=document.createElement('button');eb.className='edit-btn';eb.textContent='编辑';eb.onclick=(idx=>()=>openEdit(idx))(i);
+      const db=document.createElement('button');db.className='del-btn';db.textContent='×';db.onclick=(idx=>()=>{if(confirm('删除此项目？'))deleteItem(idx)})(i);
+      row.appendChild(eb);row.appendChild(db);s.appendChild(row);
+    });
+    const af=document.createElement('div');af.className='add-form';
+    af.innerHTML=`<input type="text" placeholder="新项目名称" id="nn_${sec.type}"/><input type="text" placeholder="分类" id="nc_${sec.type}"/><div class="r2"><input type="number" placeholder="积分值" id="np_${sec.type}" step="1" style="width:100px"/><label style="font-size:12px;color:var(--color-text-secondary);display:flex;align-items:center;gap:5px;flex:1"><input type="checkbox" id="nctr_${sec.type}"/> 计数器</label></div><button class="add-btn" onclick="addItem('${sec.type}')">+ 添加</button>`;
+    s.appendChild(af);ml.appendChild(s);
+  });
+  const rl=document.getElementById('manageRewards');rl.innerHTML='';
+  const rs=document.createElement('div');rs.className='manage-sect';
+  const rh=document.createElement('div');rh.className='mhdr';rh.textContent='奖励商店项目';rs.appendChild(rh);
+  rewards.forEach((r,i)=>{
+    const row=document.createElement('div');row.className='mitem';
+    row.innerHTML=`<div class="minm">${r.icon||'★'} ${r.name}<div style="font-size:11px;color:var(--color-text-secondary)">${r.desc||''}</div></div><div class="mpts am">-${r.cost}</div>`;
+    const eb=document.createElement('button');eb.className='edit-btn';eb.textContent='编辑';eb.onclick=(idx=>()=>openRewardEdit(idx))(i);
+    const db=document.createElement('button');db.className='del-btn';db.textContent='×';db.onclick=(idx=>()=>{if(confirm('删除此奖励？'))deleteReward(idx)})(i);
+    row.appendChild(eb);row.appendChild(db);rs.appendChild(row);
+  });
+  const af2=document.createElement('div');af2.className='add-form';
+  af2.innerHTML=`<input type="text" placeholder="奖励名称" id="rn_new"/><div class="r2"><input type="text" placeholder="图标 emoji" id="ri_new" style="width:80px"/><input type="number" placeholder="所需积分" id="rc_new" min="1" step="1"/></div><textarea placeholder="说明（可选）" id="rd_new" rows="2" style="resize:none"></textarea><button class="add-btn" onclick="addReward()">+ 添加奖励</button>`;
+  rs.appendChild(af2);rl.appendChild(rs);
+}
+
+function addItem(type){
+  const name=document.getElementById('nn_'+type).value.trim();
+  const cat=document.getElementById('nc_'+type).value.trim();
+  const pts=parseInt(document.getElementById('np_'+type).value)||0;
+  const counter=document.getElementById('nctr_'+type).checked;
+  if(!name||!pts){alert('请填写名称和积分值');return}
+  items.push({name,cat:cat||'其他',pts,type,counter:counter||undefined});
+  save();renderManage();
+}
+function deleteItem(idx){items.splice(idx,1);save();renderManage();renderScore()}
+function openEdit(idx){
+  editIdx=idx;const item=items[idx];
+  document.getElementById('editModalTitle').textContent='编辑项目';
+  document.getElementById('editName').value=item.name;
+  document.getElementById('editCat').value=item.cat;
+  document.getElementById('editPts').value=item.pts;
+  document.getElementById('editType').value=item.type;
+  document.getElementById('editCounter').checked=!!item.counter;
+  document.getElementById('editModal').classList.add('open');
+}
+function saveEdit(){
+  const name=document.getElementById('editName').value.trim();
+  const cat=document.getElementById('editCat').value.trim();
+  const pts=parseInt(document.getElementById('editPts').value)||0;
+  const type=document.getElementById('editType').value;
+  const counter=document.getElementById('editCounter').checked;
+  if(!name)return alert('请输入项目名称');
+  items[editIdx]={...items[editIdx],name,cat:cat||'其他',pts,type,counter:counter||undefined};
+  save();closeModal('editModal');renderManage();renderScore();
+}
+function addReward(){
+  const name=document.getElementById('rn_new').value.trim();
+  const icon=document.getElementById('ri_new').value.trim();
+  const cost=parseInt(document.getElementById('rc_new').value)||0;
+  const desc=document.getElementById('rd_new').value.trim();
+  if(!name||cost<1){alert('请填写奖励名称和所需积分');return}
+  rewards.push({name,icon,desc,cost});save();renderManage();
+}
+function deleteReward(idx){rewards.splice(idx,1);save();renderManage()}
+function openRewardEdit(idx){
+  rewardEditIdx=idx;const r=rewards[idx];
+  document.getElementById('rewardModalTitle').textContent='编辑奖励';
+  document.getElementById('rName').value=r.name;
+  document.getElementById('rIcon').value=r.icon||'';
+  document.getElementById('rDesc').value=r.desc||'';
+  document.getElementById('rCost').value=r.cost;
+  document.getElementById('rewardModal').classList.add('open');
+}
+function saveReward(){
+  const name=document.getElementById('rName').value.trim();
+  const icon=document.getElementById('rIcon').value.trim();
+  const desc=document.getElementById('rDesc').value.trim();
+  const cost=parseInt(document.getElementById('rCost').value)||0;
+  if(!name||cost<1)return alert('请填写名称和积分');
+  rewards[rewardEditIdx]={name,icon,desc,cost};
+  save();closeModal('rewardModal');renderManage();
+}
+function closeModal(id){document.getElementById(id).classList.remove('open');editIdx=-1;rewardEditIdx=-1;pendingRedeemIdx=-1}
+function clearAll(){if(confirm('确认清空所有积分数据？')){scores={};cumul=0;redeemLog=[];save();renderScore();renderHistory()}}
+
+// ── 启动 ──────────────────────────────────────
+async function init(){
+  try{
+    await load();
+  }catch(e){
+    console.error('初始化失败',e);
+    setDefaults();
+  }
+  document.getElementById('loadingOverlay').style.display='none';
+  document.getElementById('mainApp').style.display='';
+  const today=new Date();const ws0=getMonday(today);
+  activeDay=Math.min(Math.max(Math.round((today-ws0)/86400000),0),6);
+  renderScore();
+}
+init();
+</script>
+
+</body>
+</html>
