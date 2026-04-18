@@ -1,0 +1,19 @@
+{
+  "name": "家庭积分明细表",
+  "short_name": "家庭积分",
+  "description": "我言而有信，自律是为了更自由！",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1D9E75",
+  "theme_color": "#1D9E75",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
